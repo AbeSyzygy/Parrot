@@ -1,7 +1,7 @@
 import mido
 import pyaudio
 import threading
-import time
+import numpy as np
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
@@ -14,6 +14,7 @@ midi_control = 64                   #TODO option to listen for midi activity, th
 audio = pyaudio.PyAudio()
 pedal_state = False
 recorded_frames = None
+volume = 1.0
 
 recording_thread = None
 recording_thread_stop_event = threading.Event()
@@ -31,7 +32,6 @@ def record_audio():
     while not recording_thread_stop_event.is_set():  # Continue recording while pedal is pressed
         data = stream.read(CHUNK)
         frames.append(data)
-        print("///RECORDING///")
     
     print("Finished recording.")
     stream.stop_stream()
@@ -51,6 +51,11 @@ def play_audio():
             if playback_thread_stop_event.is_set():
                 print("playback thread stopped")
                 break
+
+            audio_data = np.frombuffer(frame, dtype=np.int16)
+            audio_data = (audio_data * volume).astype(np.int16)
+            frame = audio_data.tobytes()
+
             stream.write(frame)
 
         stream.stop_stream()
@@ -106,5 +111,11 @@ def monitor_recording():
     recording_thread_stop_event.wait()
     start_playback()
 
+def set_volume(new_volume):
+    global volume
+    volume = new_volume
+
 monitor_thread = threading.Thread(target=monitor_recording)
 monitor_thread.start()
+
+set_volume(1.5)
